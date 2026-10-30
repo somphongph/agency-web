@@ -177,6 +177,27 @@
   background: var(--region-head-bg);
 }
 
+.push {
+  margin-left: 4px;
+  padding: 5px 12px;
+  border: 1px solid var(--ink);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.push:hover:enabled {
+  background: var(--region-head-bg);
+}
+
+.push:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .footnote {
   margin: 10px 2px 0;
   font-size: 11.5px;

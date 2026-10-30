@@ -29,6 +29,16 @@
           Updating…
         }
       </span>
+
+      <button
+        type="button"
+        class="push"
+        title="Ask the backend for a new random dataset"
+        [disabled]="isRefreshing() || isInitialLoading()"
+        (click)="pushNewData()"
+      >
+        New data
+      </button>
     </div>
   </header>
 
@@ -64,7 +74,7 @@
     <app-dashboard-table [rows]="rows()" [statusGroups]="dashboard.statusGroups" />
 
     <p class="footnote">
-      Mock data from the backend · regenerated and refreshed automatically every 5 seconds.
+      Mock data from the backend · pushed live over SSE; press “New data” to randomize it.
     </p>
   }
 </main>

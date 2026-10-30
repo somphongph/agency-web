@@ -31,6 +31,10 @@ export class DashboardPage {
   }
 
   protected retry(): void {
-    this.dashboardService.refreshNow();
+    this.dashboardService.reconnect();
+  }
+
+  protected pushNewData(): void {
+    this.dashboardService.requestNewData();
   }
 }

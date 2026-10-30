@@ -25,8 +25,16 @@ RUN pnpm build
 # ---- Runtime stage --------------------------------------------------------
 FROM nginx:1.27-alpine
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# The nginx config is a template: docker-entrypoint.d/40-api-host.sh renders it with
+# $API_HOST at container start, so the API host is configuration instead of a rebuild.
+COPY nginx.conf.template /etc/agency/nginx.conf.template
+COPY docker-entrypoint.d/40-api-host.sh /docker-entrypoint.d/40-api-host.sh
+RUN chmod +x /docker-entrypoint.d/40-api-host.sh
 COPY --from=build /app/dist/agency-web/browser /usr/share/nginx/html
+
+# Default keeps `docker compose up` working; override it for any other backend:
+#   docker run -e API_HOST=https://api.example.com ...
+ENV API_HOST=http://api:8080
 
 EXPOSE 80
 

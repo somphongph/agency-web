@@ -1,6 +1,6 @@
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { DashboardTable } from './dashboard-table';
+import { DashboardTable, FLASH_MS } from './dashboard-table';
 import { RegionRow, StatusGroupMeta } from './dashboard.models';
 import { STATUS_GROUPS, sampleDashboard, sampleRegion } from './dashboard.fixture';
 
@@ -52,6 +52,81 @@ describe('DashboardTable', () => {
     expect(cases[0]).toBe('7');
     expect(cases[1]).toBe('1,234');
     expect(cases[2]).toBe('12,345');
+  });
+
+  describe('change flashes', () => {
+    function mount(rows: RegionRow[]): ComponentFixture<DashboardTable> {
+      const fixture = TestBed.createComponent(DashboardTable);
+      fixture.componentRef.setInput('rows', rows);
+      fixture.componentRef.setInput('statusGroups', STATUS_GROUPS);
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    function withDailyCases(rows: RegionRow[], region: string, delta: number): RegionRow[] {
+      return rows.map((row) =>
+        row.region !== region
+          ? row
+          : {
+              ...row,
+              submit: {
+                ...row.submit,
+                daily: { ...row.submit.daily, cases: row.submit.daily.cases + delta },
+              },
+            },
+      );
+    }
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('does not flash anything on the first render', () => {
+      const dashboard = sampleDashboard();
+      const fixture = mount([...dashboard.regions, dashboard.overall]);
+
+      expect(fixture.nativeElement.querySelectorAll('[data-flash]')).toHaveLength(0);
+    });
+
+    it('flashes only the changed cell, up or down depending on the direction', () => {
+      vi.useFakeTimers();
+      const dashboard = sampleDashboard();
+      const rows = [...dashboard.regions, dashboard.overall];
+      const fixture = mount(rows);
+
+      fixture.componentRef.setInput('rows', withDailyCases(rows, 'BKK-A', 5));
+      fixture.detectChanges();
+
+      const flashed = Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[data-flash]'),
+      );
+      expect(flashed).toHaveLength(1);
+      expect(flashed[0].classList).toContain('case-cell');
+      expect(flashed[0].getAttribute('data-flash')).toBe('up');
+      expect(flashed[0].textContent?.trim()).toBe('7');
+
+      fixture.componentRef.setInput('rows', withDailyCases(rows, 'BKK-A', -1));
+      fixture.detectChanges();
+      expect(
+        (fixture.nativeElement as HTMLElement).querySelector('[data-flash]')?.getAttribute('data-flash'),
+      ).toBe('down');
+    });
+
+    it('stops flashing after the animation window', () => {
+      vi.useFakeTimers();
+      const dashboard = sampleDashboard();
+      const rows = [...dashboard.regions, dashboard.overall];
+      const fixture = mount(rows);
+
+      fixture.componentRef.setInput('rows', withDailyCases(rows, 'BKK-A', 5));
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector('[data-flash]')).not.toBeNull();
+
+      vi.advanceTimersByTime(FLASH_MS);
+      fixture.detectChanges();
+
+      expect((fixture.nativeElement as HTMLElement).querySelector('[data-flash]')).toBeNull();
+    });
   });
 
   it('renders the status group headers with their status codes', () => {

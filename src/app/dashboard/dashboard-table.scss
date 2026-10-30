@@ -175,6 +175,40 @@
   font-size: 10px;
 }
 
+/* ---------- change flashes ---------- */
+
+.case-cell[data-flash='up'],
+.anp-cell[data-flash='up'] {
+  --flash-tint: var(--flash-up);
+}
+
+.case-cell[data-flash='down'],
+.anp-cell[data-flash='down'] {
+  --flash-tint: var(--flash-down);
+}
+
+.case-cell[data-flash],
+.anp-cell[data-flash] {
+  animation: cell-flash 900ms ease-out;
+}
+
+@keyframes cell-flash {
+  from {
+    box-shadow: inset 0 0 0 999px var(--flash-tint, transparent);
+  }
+
+  to {
+    box-shadow: inset 0 0 0 999px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .case-cell[data-flash],
+  .anp-cell[data-flash] {
+    animation: none;
+  }
+}
+
 /* stronger separators between status groups */
 .case-cell[data-group='approved']:first-of-type,
 .case-cell[data-group='pending']:first-of-type {
