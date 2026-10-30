@@ -1,6 +1,8 @@
 node_modules/
 dist/
 .angular/
+.pnpm-store/
+pnpm-store/
 *.log
 .DS_Store
 .idea/

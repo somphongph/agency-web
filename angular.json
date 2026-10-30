@@ -2,11 +2,11 @@
   "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
   "version": 1,
   "cli": {
-    "packageManager": "npm"
+    "packageManager": "pnpm"
   },
   "newProjectRoot": "projects",
   "projects": {
-    "agency-frontend": {
+    "agency-web": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -29,7 +29,9 @@
                 "input": "public"
               }
             ],
-            "styles": ["src/styles.scss"]
+            "styles": [
+              "src/styles.scss"
+            ]
           },
           "configurations": {
             "production": {
@@ -62,10 +64,10 @@
           },
           "configurations": {
             "production": {
-              "buildTarget": "agency-frontend:build:production"
+              "buildTarget": "agency-web:build:production"
             },
             "development": {
-              "buildTarget": "agency-frontend:build:development"
+              "buildTarget": "agency-web:build:development"
             }
           },
           "defaultConfiguration": "development"

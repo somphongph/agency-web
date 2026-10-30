@@ -3,8 +3,8 @@
 # ---------------------------------------------------------------------------
 # Agency Dashboard UI — Angular 21 (static build served by nginx)
 #
-# Build context: this directory (agency-frontend/)
-#   docker build -t agency-frontend .
+# Build context: this directory (agency-web/)
+#   docker build -t agency-web .
 #   docker compose -f ../agency-docs/docker/docker-compose.yml up -d --build
 # ---------------------------------------------------------------------------
 
@@ -13,21 +13,20 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 
-# pnpm-lock.yaml makes this reproducible; dependencies go first
-# so that editing application code does not reinstall them.
-COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && \
-    corepack prepare pnpm@10.32.1 --activate && \
-    pnpm install --frozen-lockfile
+# pnpm version is pinned in package.json ("packageManager"), so corepack picks
+# the same one developers use. Dependencies go first for better layer caching.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate \
+    && pnpm install --frozen-lockfile
 
 COPY . ./
-RUN pnpm exec ng build --configuration production
+RUN pnpm build
 
 # ---- Runtime stage --------------------------------------------------------
 FROM nginx:1.27-alpine
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist/agency-frontend/browser /usr/share/nginx/html
+COPY --from=build /app/dist/agency-web/browser /usr/share/nginx/html
 
 EXPOSE 80
 
