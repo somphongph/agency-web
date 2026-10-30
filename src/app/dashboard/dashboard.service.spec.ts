@@ -50,7 +50,7 @@ describe('DashboardService', () => {
     expect(service.data()).toBeNull();
     expect(service.isInitialLoading()).toBe(false);
     expect(service.hasFatalError()).toBe(true);
-    expect(service.error()).toContain('อัปเดตข้อมูลไม่สำเร็จ');
+    expect(service.error()).toContain('Failed to update the data');
   });
 
   it(`requests fresh data every ${REFRESH_INTERVAL_MS} ms`, () => {

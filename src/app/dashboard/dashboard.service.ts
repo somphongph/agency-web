@@ -102,6 +102,6 @@ export class DashboardService {
 function describeError(error: unknown): string {
   const status = (error as { status?: number } | null)?.status;
   return status
-    ? `อัปเดตข้อมูลไม่สำเร็จ (HTTP ${status}) — ระบบจะลองใหม่อัตโนมัติทุก 5 วินาที`
-    : 'อัปเดตข้อมูลไม่สำเร็จ — ระบบจะลองใหม่อัตโนมัติทุก 5 วินาที';
+    ? `Failed to update the data (HTTP ${status}) — retrying automatically every 5 seconds`
+    : 'Failed to update the data — retrying automatically every 5 seconds';
 }

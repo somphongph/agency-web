@@ -8,7 +8,7 @@
     <div class="updated">
       <span class="updated-label">Information was updated</span>
 
-      <div class="stamp stamp--date" aria-label="วันที่อัปเดตล่าสุด">
+      <div class="stamp stamp--date" aria-label="Last updated date">
         @if (lastUpdated(); as updatedAt) {
           {{ updatedAt | date: 'dd/MM/yyyy' : 'Asia/Bangkok' }}
         } @else {
@@ -16,7 +16,7 @@
         }
       </div>
 
-      <div class="stamp stamp--time" aria-label="เวลาที่อัปเดตล่าสุด">
+      <div class="stamp stamp--time" aria-label="Last updated time">
         @if (lastUpdated(); as updatedAt) {
           {{ updatedAt | date: 'HH:mm:ss' : 'Asia/Bangkok' }}
         } @else {
@@ -26,7 +26,7 @@
 
       <span class="refresh-state" [class.refresh-state--active]="isRefreshing()">
         @if (isRefreshing()) {
-          กำลังอัปเดต…
+          Updating…
         }
       </span>
     </div>
@@ -35,10 +35,10 @@
   @if (error(); as message) {
     @if (data()) {
       <p class="banner banner--warning" role="status" aria-live="polite">
-        <strong>แจ้งเตือน:</strong> {{ message }}
+        <strong>Warning:</strong> {{ message }}
         @if (lastUpdated(); as updatedAt) {
           <span class="banner-meta"
-            >ข้อมูลล่าสุด ณ {{ updatedAt | date: 'HH:mm:ss' : 'Asia/Bangkok' }}</span
+            >Last updated at {{ updatedAt | date: 'HH:mm:ss' : 'Asia/Bangkok' }}</span
           >
         }
       </p>
@@ -48,20 +48,23 @@
   @if (isInitialLoading()) {
     <div class="loading" role="status" aria-live="polite">
       <span class="spinner" aria-hidden="true"></span>
-      <span>กำลังโหลดข้อมูล Dashboard…</span>
+      <span>Loading dashboard data…</span>
     </div>
   } @else if (hasFatalError()) {
     <div class="fatal" role="alert">
-      <p class="fatal-title">ไม่สามารถโหลดข้อมูลได้</p>
+      <p class="fatal-title">Couldn't load the dashboard</p>
       <p class="fatal-message">{{ error() }}</p>
-      <button type="button" class="retry" (click)="retry()">ลองใหม่</button>
+      <button type="button" class="retry" (click)="retry()">Retry</button>
     </div>
   } @else if (data(); as dashboard) {
     <p class="scroll-hint">
-      ตารางกว้างกว่าหน้าจอ — เลื่อนแนวนอนได้ โดยคอลัมน์ REGION จะตรึงอยู่ซ้าย
+      The table is wider than the screen — scroll horizontally; the REGION column stays pinned on
+      the left.
     </p>
     <app-dashboard-table [rows]="rows()" [statusGroups]="dashboard.statusGroups" />
 
-    <p class="footnote">ข้อมูลจำลองจาก Backend · สุ่มใหม่และอัปเดตอัตโนมัติทุก 5 วินาที</p>
+    <p class="footnote">
+      Mock data from the backend · regenerated and refreshed automatically every 5 seconds.
+    </p>
   }
 </main>

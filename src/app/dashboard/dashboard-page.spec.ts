@@ -69,7 +69,7 @@ describe('DashboardPage', () => {
     const banner = el.querySelector('.banner');
     expect(banner).not.toBeNull();
     expect(banner?.textContent).toContain('HTTP 503');
-    expect(banner?.textContent).toContain('ข้อมูลล่าสุด ณ 13:45:02');
+    expect(banner?.textContent).toContain('Last updated at 13:45:02');
     expect(el.querySelector('app-dashboard-table')).not.toBeNull();
     expect(el.querySelector('.stamp--time')?.textContent?.trim()).toBe('13:45:02');
   });
