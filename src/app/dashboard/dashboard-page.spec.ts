@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 
 import { DASHBOARD_ENDPOINT, DashboardService, REFRESH_INTERVAL_MS } from './dashboard.service';
 import { DashboardPage } from './dashboard-page';
-import { sampleDashboard } from './dashboard.fixture';
+import { sampleDashboard, sampleEnvelope } from './dashboard.fixture';
 
 describe('DashboardPage', () => {
   let fixture: ComponentFixture<DashboardPage>;
@@ -35,7 +35,7 @@ describe('DashboardPage', () => {
 
   function loadFirstDashboard(): void {
     vi.advanceTimersByTime(0);
-    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(sampleDashboard());
+    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(sampleEnvelope());
     fixture.detectChanges();
   }
 
@@ -69,7 +69,7 @@ describe('DashboardPage', () => {
     const banner = el.querySelector('.banner');
     expect(banner).not.toBeNull();
     expect(banner?.textContent).toContain('HTTP 503');
-    expect(banner?.textContent).toContain('ข้อมูลล่าสุด ณ 13:45:02');
+    expect(banner?.textContent).toContain('Last updated at 13:45:02');
     expect(el.querySelector('app-dashboard-table')).not.toBeNull();
     expect(el.querySelector('.stamp--time')?.textContent?.trim()).toBe('13:45:02');
   });
@@ -87,7 +87,7 @@ describe('DashboardPage', () => {
     vi.advanceTimersByTime(REFRESH_INTERVAL_MS);
     httpMock
       .expectOne(DASHBOARD_ENDPOINT)
-      .flush(sampleDashboard({ updatedAt: '2026-10-30T13:46:00+07:00' }));
+      .flush(sampleEnvelope(sampleDashboard({ updatedAt: '2026-10-30T13:46:00+07:00' })));
     fixture.detectChanges();
 
     expect(el.querySelector('.banner')).toBeNull();
@@ -108,7 +108,7 @@ describe('DashboardPage', () => {
     expect(retryButton).not.toBeNull();
     retryButton?.click();
 
-    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(sampleDashboard());
+    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(sampleEnvelope());
     fixture.detectChanges();
 
     expect(el.querySelector('.fatal')).toBeNull();

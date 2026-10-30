@@ -3,7 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 
 import { DASHBOARD_ENDPOINT, DashboardService, REFRESH_INTERVAL_MS } from './dashboard.service';
-import { sampleDashboard } from './dashboard.fixture';
+import { sampleDashboard, sampleEnvelope, sampleErrorEnvelope } from './dashboard.fixture';
 
 describe('DashboardService', () => {
   let service: DashboardService;
@@ -32,7 +32,7 @@ describe('DashboardService', () => {
     expect(request.request.method).toBe('GET');
     expect(service.isInitialLoading()).toBe(true);
 
-    request.flush(sampleDashboard());
+    request.flush(sampleEnvelope());
 
     expect(service.isInitialLoading()).toBe(false);
     expect(service.data()?.regions).toHaveLength(8);
@@ -41,10 +41,22 @@ describe('DashboardService', () => {
     expect(service.error()).toBeNull();
   });
 
+  it('treats a success:false envelope as a failed load', () => {
+    service.start();
+    vi.advanceTimersByTime(0);
+
+    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(sampleErrorEnvelope());
+
+    expect(service.data()).toBeNull();
+    expect(service.isInitialLoading()).toBe(false);
+    expect(service.hasFatalError()).toBe(true);
+    expect(service.error()).toContain('Failed to update the data');
+  });
+
   it(`requests fresh data every ${REFRESH_INTERVAL_MS} ms`, () => {
     service.start();
     vi.advanceTimersByTime(0);
-    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(sampleDashboard());
+    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(sampleEnvelope());
 
     vi.advanceTimersByTime(REFRESH_INTERVAL_MS - 1);
     httpMock.expectNone(DASHBOARD_ENDPOINT);
@@ -52,7 +64,7 @@ describe('DashboardService', () => {
     vi.advanceTimersByTime(1);
     httpMock
       .expectOne(DASHBOARD_ENDPOINT)
-      .flush(sampleDashboard({ updatedAt: '2026-10-30T13:45:07+07:00' }));
+      .flush(sampleEnvelope(sampleDashboard({ updatedAt: '2026-10-30T13:45:07+07:00' })));
 
     expect(service.lastUpdated()?.toISOString()).toBe('2026-10-30T06:45:07.000Z');
   });
@@ -61,7 +73,7 @@ describe('DashboardService', () => {
     const first = sampleDashboard();
     service.start();
     vi.advanceTimersByTime(0);
-    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(first);
+    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(sampleEnvelope(first));
 
     vi.advanceTimersByTime(REFRESH_INTERVAL_MS);
     httpMock
@@ -75,7 +87,7 @@ describe('DashboardService', () => {
 
     const recovered = sampleDashboard({ updatedAt: '2026-10-30T13:46:00+07:00' });
     vi.advanceTimersByTime(REFRESH_INTERVAL_MS);
-    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(recovered);
+    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(sampleEnvelope(recovered));
 
     expect(service.error()).toBeNull();
     expect(service.data()).toEqual(recovered);
@@ -90,15 +102,15 @@ describe('DashboardService', () => {
     vi.advanceTimersByTime(REFRESH_INTERVAL_MS);
     httpMock.expectNone(DASHBOARD_ENDPOINT);
 
-    slowRequest.flush(sampleDashboard());
+    slowRequest.flush(sampleEnvelope());
     vi.advanceTimersByTime(REFRESH_INTERVAL_MS);
-    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(sampleDashboard());
+    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(sampleEnvelope());
   });
 
   it('stops polling when its injector is destroyed', () => {
     service.start();
     vi.advanceTimersByTime(0);
-    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(sampleDashboard());
+    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(sampleEnvelope());
 
     TestBed.resetTestingModule();
     vi.advanceTimersByTime(REFRESH_INTERVAL_MS * 4);

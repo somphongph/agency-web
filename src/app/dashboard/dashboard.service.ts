@@ -14,7 +14,7 @@ import {
   timer,
 } from 'rxjs';
 
-import { DashboardResponse } from './dashboard.models';
+import { ApiResponse, DashboardResponse } from './dashboard.models';
 
 export const REFRESH_INTERVAL_MS = 5_000;
 export const DASHBOARD_ENDPOINT = '/api/v1/dashboard';
@@ -73,10 +73,17 @@ export class DashboardService {
   private load(): Observable<void> {
     this.refreshingSignal.set(true);
 
-    return this.http.get<DashboardResponse>(DASHBOARD_ENDPOINT).pipe(
-      tap((response) => {
-        this.dataSignal.set(response);
-        this.lastUpdatedSignal.set(new Date(response.updatedAt));
+    return this.http.get<ApiResponse<DashboardResponse>>(DASHBOARD_ENDPOINT).pipe(
+      // Every agency-api response is an envelope; the UI only cares about the payload.
+      map((response) => {
+        if (!response.success || response.data == null) {
+          throw new Error(response.message || 'Unexpected response envelope');
+        }
+        return response.data;
+      }),
+      tap((dashboard) => {
+        this.dataSignal.set(dashboard);
+        this.lastUpdatedSignal.set(new Date(dashboard.updatedAt));
         this.errorSignal.set(null);
         this.initialLoadingSignal.set(false);
       }),
@@ -95,6 +102,6 @@ export class DashboardService {
 function describeError(error: unknown): string {
   const status = (error as { status?: number } | null)?.status;
   return status
-    ? `อัปเดตข้อมูลไม่สำเร็จ (HTTP ${status}) — ระบบจะลองใหม่อัตโนมัติทุก 5 วินาที`
-    : 'อัปเดตข้อมูลไม่สำเร็จ — ระบบจะลองใหม่อัตโนมัติทุก 5 วินาที';
+    ? `Failed to update the data (HTTP ${status}) — retrying automatically every 5 seconds`
+    : 'Failed to update the data — retrying automatically every 5 seconds';
 }

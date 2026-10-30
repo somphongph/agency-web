@@ -3,11 +3,14 @@
 Angular 21 (standalone + signals, zoneless) สำหรับแสดง Agency Dashboard
 
 ```bash
-npm install
-npm start        # http://localhost:4200, proxy /api → http://localhost:8080
-npm test -- --watch=false
-npm run build
+pnpm install
+pnpm start        # http://localhost:4200, proxy /api → http://localhost:8080
+pnpm test --watch=false
+pnpm build
 ```
+
+หรือใช้ `Makefile` ที่เตรียมไว้: `make boot` (ติดตั้ง toolchain), `make init` (pre-commit + pnpm install),
+`make dev`, `make build`, `make test`, `make check` (pre-commit run --all-files)
 
 - Backend ต้องรันที่ port 8080 (ดู `../agency-api`)
 - Proxy config: `proxy.conf.json` (ผูกไว้ใน `angular.json` แล้ว)
