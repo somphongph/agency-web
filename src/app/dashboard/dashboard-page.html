@@ -1,0 +1,67 @@
+<main class="dashboard">
+  <header class="panel-header">
+    <div class="brand">
+      <span class="brand-main">AGENCY</span>
+      <span class="brand-sub">CHANNEL</span>
+    </div>
+
+    <div class="updated">
+      <span class="updated-label">Information was updated</span>
+
+      <div class="stamp stamp--date" aria-label="วันที่อัปเดตล่าสุด">
+        @if (lastUpdated(); as updatedAt) {
+          {{ updatedAt | date: 'dd/MM/yyyy' : 'Asia/Bangkok' }}
+        } @else {
+          --/--/----
+        }
+      </div>
+
+      <div class="stamp stamp--time" aria-label="เวลาที่อัปเดตล่าสุด">
+        @if (lastUpdated(); as updatedAt) {
+          {{ updatedAt | date: 'HH:mm:ss' : 'Asia/Bangkok' }}
+        } @else {
+          --:--:--
+        }
+      </div>
+
+      <span class="refresh-state" [class.refresh-state--active]="isRefreshing()">
+        @if (isRefreshing()) {
+          กำลังอัปเดต…
+        }
+      </span>
+    </div>
+  </header>
+
+  @if (error(); as message) {
+    @if (data()) {
+      <p class="banner banner--warning" role="status" aria-live="polite">
+        <strong>แจ้งเตือน:</strong> {{ message }}
+        @if (lastUpdated(); as updatedAt) {
+          <span class="banner-meta"
+            >ข้อมูลล่าสุด ณ {{ updatedAt | date: 'HH:mm:ss' : 'Asia/Bangkok' }}</span
+          >
+        }
+      </p>
+    }
+  }
+
+  @if (isInitialLoading()) {
+    <div class="loading" role="status" aria-live="polite">
+      <span class="spinner" aria-hidden="true"></span>
+      <span>กำลังโหลดข้อมูล Dashboard…</span>
+    </div>
+  } @else if (hasFatalError()) {
+    <div class="fatal" role="alert">
+      <p class="fatal-title">ไม่สามารถโหลดข้อมูลได้</p>
+      <p class="fatal-message">{{ error() }}</p>
+      <button type="button" class="retry" (click)="retry()">ลองใหม่</button>
+    </div>
+  } @else if (data(); as dashboard) {
+    <p class="scroll-hint">
+      ตารางกว้างกว่าหน้าจอ — เลื่อนแนวนอนได้ โดยคอลัมน์ REGION จะตรึงอยู่ซ้าย
+    </p>
+    <app-dashboard-table [rows]="rows()" [statusGroups]="dashboard.statusGroups" />
+
+    <p class="footnote">ข้อมูลจำลองจาก Backend · สุ่มใหม่และอัปเดตอัตโนมัติทุก 5 วินาที</p>
+  }
+</main>

@@ -1,0 +1,63 @@
+<div class="table-scroll">
+  <table class="dash-table">
+    <caption class="sr-only">
+      Agency dashboard: cases and ANP by region for submit, approved and pending statuses
+    </caption>
+    <colgroup>
+      <col class="col-region" />
+      @for (column of columns; track column.group + '-' + column.period) {
+        <col class="col-case" />
+        <col class="col-anp" />
+      }
+    </colgroup>
+
+    <thead>
+      <tr class="group-row">
+        <th rowspan="3" scope="col" class="region-head">REGION</th>
+        @for (group of groups; track group) {
+          <th
+            [attr.colspan]="(columns.length / groups.length) * 2"
+            scope="colgroup"
+            class="group-head"
+            [attr.data-group]="group"
+          >
+            <span class="group-title">{{ statusGroups()[group].label }}</span>
+            <span class="group-status">({{ statusGroups()[group].statusCodes }})</span>
+          </th>
+        }
+      </tr>
+
+      <tr class="period-row">
+        @for (column of columns; track column.group + '-' + column.period) {
+          <th colspan="2" scope="colgroup" class="period-head" [attr.data-group]="column.group">
+            {{ periodLabels[column.period] }}
+          </th>
+        }
+      </tr>
+
+      <tr class="metric-row">
+        @for (column of columns; track column.group + '-' + column.period) {
+          <th scope="col" class="metric-head" [attr.data-group]="column.group">Case</th>
+          <th scope="col" class="metric-head" [attr.data-group]="column.group">ANP</th>
+        }
+      </tr>
+    </thead>
+
+    <tbody>
+      @for (row of rows(); track row.region) {
+        <tr class="data-row" [class.data-row--overall]="row.region === 'OVERALL'">
+          <th scope="row" class="region-cell">{{ row.region }}</th>
+          @for (column of columns; track column.group + '-' + column.period) {
+            <td class="case-cell" [attr.data-group]="column.group">
+              {{ row[column.group][column.period].cases | number: '1.0-0' }}
+            </td>
+            <td class="anp-cell" [attr.data-group]="column.group">
+              {{ row[column.group][column.period].anp | number: '1.2-2'
+              }}<span class="unit"> mb</span>
+            </td>
+          }
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

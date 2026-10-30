@@ -1,0 +1,52 @@
+:root {
+  color-scheme: light;
+
+  --ink: #111a22;
+  --page-bg: #eef2f6;
+  --surface: #ffffff;
+
+  --grid: #c7dcec;
+  --grid-strong: #8fb4d1;
+
+  --region-head-bg: #f4f8fc;
+  --region-cell-bg: #dbe9f6;
+  --region-cell-bg-alt: #d3e4f3;
+
+  --submit: #3d82b8;
+  --approved: #1d4e78;
+  --pending: #f6c7a6;
+  --pending-ink: #4b2f1c;
+
+  --head-ink: #12395c;
+  --overall-bg: #c9e0f2;
+
+  --stamp-bg: #d9d9d9;
+  --stamp-border: #b7b7b7;
+
+  --unit-ink: #4a5a68;
+  --muted-ink: #5b6b78;
+
+  --warning-bg: #fff4d6;
+  --warning-ink: #6b4a00;
+
+  --spinner-track: #dbe7f1;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--page-bg);
+  color: var(--ink);
+  font-family: 'Helvetica Neue', Helvetica, Arial, 'Noto Sans Thai', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}

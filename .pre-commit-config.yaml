@@ -1,0 +1,59 @@
+files: ^agency-frontend/
+
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: ["--allow-multiple-documents"]
+      - id: check-json
+        exclude: 'tsconfig.*\.json$'
+      - id: check-merge-conflict
+      - id: no-commit-to-branch
+        args: ["--branch", "main", "--branch", "develop"]
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: ["--maxkb", "1000"]
+
+  - repo: local
+    hooks:
+      - id: prettier
+        name: Prettier
+        entry: bash -c 'cd agency-frontend && pnpm prettier --write "${@#agency-frontend/}"' bash
+        language: system
+        files: ^agency-frontend/
+        types_or: [javascript, jsx, tsx, ts, css, scss, html, json]
+        pass_filenames: true
+
+      - id: typescript
+        name: TypeScript type check
+        entry: bash -c 'cd agency-frontend && pnpm tsc --noEmit'
+        language: system
+        files: ^agency-frontend/
+        pass_filenames: false
+
+      - id: trivy-check
+        name: Trivy check
+        entry: bash -c 'trivy fs --exit-code 1 --severity HIGH,CRITICAL .'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: unit-tests
+        name: Unit tests
+        entry: bash -c 'cd agency-frontend && make test'
+        language: system
+        files: ^agency-frontend/
+        pass_filenames: false
+        stages: [pre-commit]
+
+      - id: angular-build
+        name: Angular build
+        entry: bash -c 'cd agency-frontend && make build'
+        language: system
+        files: ^agency-frontend/
+        pass_filenames: false
+        stages: [pre-commit]
