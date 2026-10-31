@@ -10,7 +10,7 @@
 
       <div class="stamp stamp--date" aria-label="Last updated date">
         @if (lastUpdated(); as updatedAt) {
-          {{ updatedAt | date: 'dd/MM/yyyy' : 'Asia/Bangkok' }}
+          {{ updatedAt | date: 'dd/MM/yyyy' : bangkokOffset }}
         } @else {
           --/--/----
         }
@@ -18,7 +18,7 @@
 
       <div class="stamp stamp--time" aria-label="Last updated time">
         @if (lastUpdated(); as updatedAt) {
-          {{ updatedAt | date: 'HH:mm:ss' : 'Asia/Bangkok' }}
+          {{ updatedAt | date: 'HH:mm:ss' : bangkokOffset }}
         } @else {
           --:--:--
         }
@@ -48,7 +48,7 @@
         <strong>Warning:</strong> {{ message }}
         @if (lastUpdated(); as updatedAt) {
           <span class="banner-meta"
-            >Last updated at {{ updatedAt | date: 'HH:mm:ss' : 'Asia/Bangkok' }}</span
+            >Last updated at {{ updatedAt | date: 'HH:mm:ss' : bangkokOffset }}</span
           >
         }
       </p>

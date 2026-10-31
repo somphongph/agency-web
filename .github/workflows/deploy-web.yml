@@ -34,6 +34,8 @@ permissions:
   contents: read
 
 env:
+  # Keep the test run in UTC so local-timezone assumptions cannot hide bugs.
+  TZ: UTC
   AWS_REGION: ${{ vars.AWS_REGION }}
   S3_BUCKET: ${{ vars.S3_BUCKET }}
   CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
