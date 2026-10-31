@@ -1,0 +1,174 @@
+name: Deploy Web
+
+# Build the Angular app and publish it to S3, then invalidate CloudFront so the new
+# index.html is picked up immediately. See the "Deploy to S3 + CloudFront" section in
+# README.md for the bucket/distribution setup this expects.
+
+on:
+  push:
+    branches: 
+      - feature/*
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'angular.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'scripts/**'
+      - 'proxy.conf.mjs'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'GitHub Environment to deploy to'
+        type: choice
+        options: [staging, production]
+        default: staging
+
+concurrency:
+  group: deploy-web-${{ github.event.inputs.environment || (github.ref_name == 'main' && 'production' || 'staging') }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write # OIDC: no long-lived AWS keys in the repo
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  S3_BUCKET: ${{ vars.S3_BUCKET }}
+  CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+  DIST_DIR: dist/agency-web/browser
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Unit tests
+        run: pnpm test --watch=false
+
+  deploy:
+    name: Deploy
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'production' || 'staging') }}
+      url: ${{ vars.APP_URL }}
+    env:
+      # Prefer OIDC (AWS_ROLE_ARN); static keys stay supported for older setups.
+      AWS_AUTH_MODE: ${{ secrets.AWS_ROLE_ARN != '' && 'oidc' || 'keys' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: |
+          set -euo pipefail
+          pnpm build
+          test -f "$DIST_DIR/index.html" || {
+            echo "::error::Build did not produce $DIST_DIR/index.html"
+            exit 1
+          }
+
+      - name: Configure AWS credentials (OIDC)
+        if: env.AWS_AUTH_MODE == 'oidc'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: gha-agency-web-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure AWS credentials (static keys fallback)
+        if: env.AWS_AUTH_MODE == 'keys'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Validate settings
+        run: |
+          set -euo pipefail
+          for name in AWS_REGION S3_BUCKET; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is empty — set it in the repository/environment variables."
+              exit 1
+            fi
+          done
+          if ! aws s3 ls "s3://$S3_BUCKET" >/dev/null 2>&1; then
+            echo "::error::Cannot list s3://$S3_BUCKET — check the bucket name, region and IAM permissions."
+            exit 1
+          fi
+
+      - name: Upload (default cache)
+        run: |
+          set -euo pipefail
+          # Everything gets a short cache first; index.html is handled separately below.
+          # NOTE: --delete removes objects that are not in the build, so use a dedicated bucket.
+          aws s3 sync "$DIST_DIR" "s3://$S3_BUCKET" \
+            --delete \
+            --exclude "index.html" \
+            --cache-control "public,max-age=3600" \
+            --only-show-errors
+
+      - name: Upload (hashed assets, immutable)
+        run: |
+          set -euo pipefail
+          # Angular emits content-hashed js/css, so they can be cached forever.
+          aws s3 sync "$DIST_DIR" "s3://$S3_BUCKET" \
+            --exclude "*" \
+            --include "*.js" \
+            --include "*.css" \
+            --cache-control "public,max-age=31536000,immutable" \
+            --only-show-errors
+
+      - name: Upload index.html (must revalidate)
+        run: |
+          set -euo pipefail
+          aws s3 cp "$DIST_DIR/index.html" "s3://$S3_BUCKET/index.html" \
+            --cache-control "no-cache" \
+            --content-type "text/html; charset=utf-8" \
+            --only-show-errors
+
+      - name: Invalidate CloudFront
+        if: env.CLOUDFRONT_DISTRIBUTION_ID != ''
+        run: |
+          set -euo pipefail
+          # Only the document needs invalidating: js/css names change with every build.
+          aws cloudfront create-invalidation \
+            --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+            --paths "/" "/index.html" \
+            --query 'Invalidation.{id:Id,status:Status}' --output json
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### agency-web → S3"
+            echo
+            echo "- bucket: \`s3://$S3_BUCKET\` ($AWS_REGION)"
+            echo "- distribution: \`${CLOUDFRONT_DISTRIBUTION_ID:-none}\`"
+            echo "- url: ${APP_URL:-n/a}"
+            if [ -d "$DIST_DIR" ]; then
+              echo "- files: $(find "$DIST_DIR" -type f | wc -l | tr -d ' ')"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          APP_URL: ${{ vars.APP_URL }}

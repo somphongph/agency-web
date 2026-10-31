@@ -41,3 +41,56 @@ src/app/
 ```
 
 รายละเอียดการออกแบบและเหตุผลดูที่ [README หลัก](../README.md)
+
+## Deploy to S3 + CloudFront
+
+`.github/workflows/deploy-web.yml` build แล้วอัปขึ้น S3 + invalidate CloudFront (ไม่ต้องมี server)
+
+### GitHub Variables / Secrets
+
+| name | ชนิด | ค่า |
+|---|---|---|
+| `AWS_REGION` | var | `ap-southeast-7` (ต้องตรงกับ region ของ bucket) |
+| `S3_BUCKET` | var | ชื่อ bucket (ไม่ต้องมี `s3://`) |
+| `CLOUDFRONT_DISTRIBUTION_ID` | var | ถ้าไม่ใส่ = ข้ามการ invalidate (ไม่แนะนำ) |
+| `APP_URL` | var | ใช้โชว์ใน GitHub UI |
+| `AWS_ROLE_ARN` | secret | OIDC role (แนะนำ) |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | secret | ทางเลือกถ้ายังไม่ทำ OIDC |
+
+สิทธิ์ที่ deploy role/user ต้องมี:
+```
+s3:ListBucket            → arn:aws:s3:::<bucket>
+s3:PutObject             → arn:aws:s3:::<bucket>/*
+s3:DeleteObject          → arn:aws:s3:::<bucket>/*
+cloudfront:CreateInvalidation → arn:aws:cloudfront::<account>:distribution/<id>
+```
+
+> workflow ใช้ `aws s3 sync --delete` ที่ **root ของ bucket** — อย่าใช้ bucket ร่วมกับไฟล์อื่น
+> เพราะไฟล์ที่ไม่อยู่ใน build จะถูกลบ
+
+### Cache headers ที่ workflow ตั้งให้
+
+| ไฟล์ | Cache-Control |
+|---|---|
+| `*.js`, `*.css` (มี content hash) | `public,max-age=31536000,immutable` |
+| `index.html` | `no-cache` (ต้อง revalidate ทุกครั้ง) |
+| ที่เหลือ (favicon ฯลฯ) | `public,max-age=3600` |
+
+### สิ่งที่ต้องตั้งที่ CloudFront (สำคัญ)
+
+1. **SPA fallback** — Custom error responses: `403` และ `404` → `/index.html`, response code `200`
+   (S3 ไม่ rewrite path ให้; ถ้าไม่ตั้ง การ refresh ที่ path ลึก เช่น `/dashboard` จะได้ 404)
+2. **`/api/*` behavior → ALB/API origin** เพื่อให้ relative `/api/...` ยังใช้ได้ (ไม่ต้องแก้โค้ด/ไม่ต้องมี CORS)
+   - Cache policy: **CachingDisabled**
+   - Origin request policy: **AllViewer** (ต้องส่ง `Accept` ผ่านไปให้ SSE)
+   - **Compress: off** และ Origin response timeout ≥ 30s (heartbeat SSE คือ 20s)
+   - ห้ามเปิด caching/invalidation ของ path นี้
+3. Bucket ไม่ต้อง public — ใช้ **OAC** (Origin Access Control) ให้ CloudFront อ่านได้
+
+### ตรวจหลัง deploy
+
+```bash
+curl -I https://<cloudfront-domain>/            # 200, index.html, cache-control: no-cache
+curl -I https://<cloudfront-domain>/<asset>.js  # 200, immutable
+curl -s https://<cloudfront-domain>/api/v1/health   # 200 envelope (ต้องผ่าน behavior /api/*)
+```
