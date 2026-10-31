@@ -1,19 +1,12 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 
-import {
-  DASHBOARD_REFRESH_ENDPOINT,
-  DASHBOARD_STREAM_ENDPOINT,
-  DashboardService,
-} from './dashboard.service';
+import { DASHBOARD_STREAM_ENDPOINT, DashboardService } from './dashboard.service';
 import { DASHBOARD_STREAM_FACTORY } from './dashboard.stream';
 import { sampleDashboard, sampleEnvelope, sampleErrorEnvelope } from './dashboard.fixture';
 import { FakeDashboardStreamFactory } from './testing/fake-dashboard-stream';
 
 describe('DashboardService', () => {
   let service: DashboardService;
-  let httpMock: HttpTestingController;
   let streams: FakeDashboardStreamFactory;
 
   beforeEach(() => {
@@ -21,18 +14,14 @@ describe('DashboardService', () => {
     TestBed.configureTestingModule({
       providers: [
         DashboardService,
-        provideHttpClient(),
-        provideHttpClientTesting(),
         { provide: DASHBOARD_STREAM_FACTORY, useValue: streams.factory },
       ],
     });
     service = TestBed.inject(DashboardService);
-    httpMock = TestBed.inject(HttpTestingController);
   });
 
   afterEach(() => {
     TestBed.resetTestingModule();
-    httpMock.verify();
   });
 
   it('opens the SSE stream on start', () => {
@@ -41,7 +30,6 @@ describe('DashboardService', () => {
 
     expect(streams.streams).toHaveLength(1);
     expect(streams.urls).toEqual([DASHBOARD_STREAM_ENDPOINT]);
-    expect(httpMock.match(() => true)).toHaveLength(0);
   });
 
   it('applies the pushed snapshot and its Bangkok timestamp', () => {
@@ -87,6 +75,18 @@ describe('DashboardService', () => {
     expect(service.lastUpdated()?.toISOString()).toBe('2026-10-30T06:46:00.000Z');
   });
 
+  it('applies a snapshot that was pushed after an external refresh', () => {
+    service.start();
+    streams.latest.emit(sampleEnvelope());
+    const before = service.data();
+
+    streams.latest.emit(sampleEnvelope(sampleDashboard({ updatedAt: '2026-10-30T14:00:00+07:00' })));
+
+    expect(service.data()).not.toEqual(before);
+    expect(service.lastUpdated()?.toISOString()).toBe('2026-10-30T07:00:00.000Z');
+    expect(service.error()).toBeNull();
+  });
+
   it('reconnects with a new stream and shows the loading state again', () => {
     service.start();
     streams.latest.fail();
@@ -102,38 +102,6 @@ describe('DashboardService', () => {
     streams.latest.emit(sampleEnvelope());
     expect(service.hasFatalError()).toBe(false);
     expect(service.data()?.regions).toHaveLength(8);
-  });
-
-  it('asks the backend for new data and applies the returned snapshot', () => {
-    service.start();
-    streams.latest.emit(sampleEnvelope());
-    const refreshed = sampleDashboard({ updatedAt: '2026-10-30T14:00:00+07:00' });
-
-    service.requestNewData();
-    service.requestNewData(); // ignored while the first POST is in flight
-    expect(service.isRefreshing()).toBe(true);
-
-    const request = httpMock.expectOne(DASHBOARD_REFRESH_ENDPOINT);
-    expect(request.request.method).toBe('POST');
-    request.flush(sampleEnvelope(refreshed));
-
-    expect(service.isRefreshing()).toBe(false);
-    expect(service.data()).toEqual(refreshed);
-    expect(service.lastUpdated()?.toISOString()).toBe('2026-10-30T07:00:00.000Z');
-  });
-
-  it('shows an error when asking for new data fails', () => {
-    service.start();
-    streams.latest.emit(sampleEnvelope());
-
-    service.requestNewData();
-    httpMock
-      .expectOne(DASHBOARD_REFRESH_ENDPOINT)
-      .flush('down', { status: 500, statusText: 'Server Error' });
-
-    expect(service.isRefreshing()).toBe(false);
-    expect(service.error()).toContain('HTTP 500');
-    expect(service.data()).not.toBeNull();
   });
 
   it('closes the stream when its injector is destroyed', () => {

@@ -24,7 +24,6 @@ export class DashboardPage {
   protected readonly data = this.dashboardService.data;
   protected readonly lastUpdated = this.dashboardService.lastUpdated;
   protected readonly isInitialLoading = this.dashboardService.isInitialLoading;
-  protected readonly isRefreshing = this.dashboardService.isRefreshing;
   protected readonly error = this.dashboardService.error;
   protected readonly hasFatalError = this.dashboardService.hasFatalError;
 
@@ -39,9 +38,5 @@ export class DashboardPage {
 
   protected retry(): void {
     this.dashboardService.reconnect();
-  }
-
-  protected pushNewData(): void {
-    this.dashboardService.requestNewData();
   }
 }

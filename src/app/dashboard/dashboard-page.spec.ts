@@ -1,8 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 
-import { DASHBOARD_REFRESH_ENDPOINT, DashboardService } from './dashboard.service';
+import { DashboardService } from './dashboard.service';
 import { DASHBOARD_STREAM_FACTORY } from './dashboard.stream';
 import { DashboardPage } from './dashboard-page';
 import { sampleDashboard, sampleEnvelope } from './dashboard.fixture';
@@ -10,7 +8,6 @@ import { FakeDashboardStreamFactory } from './testing/fake-dashboard-stream';
 
 describe('DashboardPage', () => {
   let fixture: ComponentFixture<DashboardPage>;
-  let httpMock: HttpTestingController;
   let streams: FakeDashboardStreamFactory;
   let el: HTMLElement;
 
@@ -18,17 +15,12 @@ describe('DashboardPage', () => {
     streams = new FakeDashboardStreamFactory();
     await TestBed.configureTestingModule({
       imports: [DashboardPage],
-      providers: [
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        { provide: DASHBOARD_STREAM_FACTORY, useValue: streams.factory },
-      ],
+      providers: [{ provide: DASHBOARD_STREAM_FACTORY, useValue: streams.factory }],
     })
       // Mirrors the route-level provider from app.routes.ts.
       .overrideComponent(DashboardPage, { set: { providers: [DashboardService] } })
       .compileComponents();
 
-    httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(DashboardPage);
     fixture.detectChanges();
     el = fixture.nativeElement as HTMLElement;
@@ -37,7 +29,6 @@ describe('DashboardPage', () => {
   afterEach(() => {
     fixture.destroy();
     TestBed.resetTestingModule();
-    httpMock.verify();
   });
 
   function push(envelope = sampleEnvelope()): void {
@@ -110,24 +101,11 @@ describe('DashboardPage', () => {
     expect(el.querySelector('app-dashboard-table')).not.toBeNull();
   });
 
-  it('asks for new data from the header button and applies the pushed snapshot', () => {
+  it('does not render a control for pushing data (the backend owns refreshes)', () => {
     push();
 
-    const button = el.querySelector<HTMLButtonElement>('button.push');
-    expect(button).not.toBeNull();
-    expect(button?.textContent?.trim()).toBe('New data');
-
-    button?.click();
-    fixture.detectChanges();
-    expect(button?.disabled).toBe(true);
-
-    httpMock
-      .expectOne(DASHBOARD_REFRESH_ENDPOINT)
-      .flush(sampleEnvelope(sampleDashboard({ updatedAt: '2026-10-30T14:00:00+07:00' })));
-    fixture.detectChanges();
-
-    expect(button?.disabled).toBe(false);
-    expect(el.querySelector('.stamp--time')?.textContent?.trim()).toBe('14:00:00');
+    expect(el.querySelector('button.push')).toBeNull();
+    expect(el.textContent).not.toContain('New data');
   });
 
   it('closes the connection after the page is destroyed', () => {

@@ -71,18 +71,6 @@
   min-width: 110px;
 }
 
-.refresh-state {
-  min-width: 84px;
-  font-size: 11px;
-  color: var(--muted-ink);
-  transition: opacity 120ms ease-in;
-  opacity: 0;
-}
-
-.refresh-state--active {
-  opacity: 1;
-}
-
 .banner {
   margin: 0;
   padding: 10px 16px;
@@ -175,27 +163,6 @@
 
 .retry:hover {
   background: var(--region-head-bg);
-}
-
-.push {
-  margin-left: 4px;
-  padding: 5px 12px;
-  border: 1px solid var(--ink);
-  background: var(--surface);
-  color: var(--ink);
-  font: inherit;
-  font-size: 11.5px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.push:hover:enabled {
-  background: var(--region-head-bg);
-}
-
-.push:disabled {
-  opacity: 0.45;
-  cursor: default;
 }
 
 .footnote {

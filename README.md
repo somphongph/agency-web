@@ -22,7 +22,7 @@ pnpm build
   ด้วย env `API_HOST` (ดู `docker-entrypoint.d/40-api-host.sh`) — เปลี่ยน host ได้โดยไม่ต้อง rebuild image
 - Endpoint ที่ใช้:
   - `GET /api/v1/dashboard/stream` — SSE (`text/event-stream`), event ชื่อ `dashboard`; backend ส่ง snapshot ปัจจุบันทันทีที่ต่อ แล้ว push ทุกครั้งที่มีการ refresh
-  - `POST /api/v1/dashboard/refresh` — ปุ่ม **New data** สั่ง backend สุ่มชุดใหม่ (ผลลัพธ์ถูก push มาทาง stream)
+  - `POST /api/v1/dashboard/refresh` — สั่ง backend สุ่มชุดใหม่ (ไม่มีปุ่มบน UI แล้ว; เรียกผ่าน curl/Bruno/scheduler) ผลลัพธ์ถูก push มาทาง stream
 - Docker: `Dockerfile` + `nginx.conf` อยู่ในโฟลเดอร์นี้ (compose อยู่ที่ `../agency-docs/docker`)
 
 ## โครงสร้าง
