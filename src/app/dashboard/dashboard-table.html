@@ -48,10 +48,18 @@
         <tr class="data-row" [class.data-row--overall]="row.region === 'OVERALL'">
           <th scope="row" class="region-cell">{{ row.region }}</th>
           @for (column of columns; track column.group + '-' + column.period) {
-            <td class="case-cell" [attr.data-group]="column.group">
+            <td
+              class="case-cell"
+              [attr.data-group]="column.group"
+              [attr.data-flash]="flash(row, column, 'cases')"
+            >
               {{ row[column.group][column.period].cases | number: '1.0-0' }}
             </td>
-            <td class="anp-cell" [attr.data-group]="column.group">
+            <td
+              class="anp-cell"
+              [attr.data-group]="column.group"
+              [attr.data-flash]="flash(row, column, 'anp')"
+            >
               {{ row[column.group][column.period].anp | number: '1.2-2'
               }}<span class="unit"> mb</span>
             </td>

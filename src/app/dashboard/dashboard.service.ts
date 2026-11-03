@@ -1,107 +1,99 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { HttpClient } from '@angular/common/http';
-import {
-  EMPTY,
-  Observable,
-  Subject,
-  catchError,
-  exhaustMap,
-  finalize,
-  map,
-  merge,
-  tap,
-  timer,
-} from 'rxjs';
 
 import { ApiResponse, DashboardResponse } from './dashboard.models';
+import {
+  DASHBOARD_STREAM_FACTORY,
+  DashboardStream,
+  DashboardStreamHandlers,
+} from './dashboard.stream';
 
-export const REFRESH_INTERVAL_MS = 5_000;
-export const DASHBOARD_ENDPOINT = '/api/v1/dashboard';
+export const DASHBOARD_STREAM_ENDPOINT = '/api/v1/dashboard/stream';
 
 /**
- * Owns dashboard state and the 5 second refresh loop.
+ * Owns dashboard state and the live connection.
+ *
+ * The data is pushed by the backend over Server-Sent Events: the stream sends the current
+ * snapshot as soon as it opens, and every refresh (triggered from outside the UI, e.g. by an
+ * operator or a scheduler) is pushed to all connected browsers.
  *
  * Provided at route level (see app.routes.ts) so Angular destroys it — and with it the
- * timer — as soon as the user leaves the dashboard.
+ * connection — as soon as the user leaves the dashboard.
  */
 @Injectable()
 export class DashboardService {
-  private readonly http = inject(HttpClient);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly streamFactory = inject(DASHBOARD_STREAM_FACTORY);
 
   private readonly dataSignal = signal<DashboardResponse | null>(null);
   private readonly lastUpdatedSignal = signal<Date | null>(null);
   private readonly initialLoadingSignal = signal(true);
-  private readonly refreshingSignal = signal(false);
   private readonly errorSignal = signal<string | null>(null);
-  private readonly manualRefresh$ = new Subject<void>();
 
   readonly data = this.dataSignal.asReadonly();
   readonly lastUpdated = this.lastUpdatedSignal.asReadonly();
   readonly isInitialLoading = this.initialLoadingSignal.asReadonly();
-  readonly isRefreshing = this.refreshingSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
 
-  /** True when the very first request already failed: no table to keep on screen. */
+  /** True when the very first payload never arrived: no table to keep on screen. */
   readonly hasFatalError = computed(
     () => this.dataSignal() === null && !this.initialLoadingSignal() && this.errorSignal() !== null,
   );
 
+  private stream: DashboardStream | null = null;
   private started = false;
+
+  constructor() {
+    this.destroyRef.onDestroy(() => this.closeStream());
+  }
 
   start(): void {
     if (this.started) {
       return;
     }
     this.started = true;
-
-    const trigger$ = merge(timer(0, REFRESH_INTERVAL_MS), this.manualRefresh$.pipe(map(() => 0)));
-    trigger$
-      .pipe(
-        exhaustMap(() => this.load()),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe();
+    this.connect();
   }
 
-  /** Used by the "try again" button after a first-load failure. */
-  refreshNow(): void {
-    this.manualRefresh$.next();
+  /** Retry button: drop the dead connection and open a new one. */
+  reconnect(): void {
+    this.closeStream();
+    this.errorSignal.set(null);
+    this.initialLoadingSignal.set(true);
+    this.connect();
   }
 
-  private load(): Observable<void> {
-    this.refreshingSignal.set(true);
+  private connect(): void {
+    this.stream = this.streamFactory(DASHBOARD_STREAM_ENDPOINT, this.handlers());
+  }
 
-    return this.http.get<ApiResponse<DashboardResponse>>(DASHBOARD_ENDPOINT).pipe(
-      // Every agency-api response is an envelope; the UI only cares about the payload.
-      map((response) => {
-        if (!response.success || response.data == null) {
-          throw new Error(response.message || 'Unexpected response envelope');
-        }
-        return response.data;
-      }),
-      tap((dashboard) => {
-        this.dataSignal.set(dashboard);
-        this.lastUpdatedSignal.set(new Date(dashboard.updatedAt));
-        this.errorSignal.set(null);
+  private handlers(): DashboardStreamHandlers {
+    return {
+      onSnapshot: (envelope) => this.apply(envelope),
+      onError: () => {
+        // EventSource keeps reconnecting; keep the last good table and say so.
+        this.errorSignal.set(
+          'Lost the live connection — reconnecting automatically. Showing the last data received.',
+        );
         this.initialLoadingSignal.set(false);
-      }),
-      catchError((error: unknown) => {
-        // Keep the last successful data and the last successful timestamp.
-        this.errorSignal.set(describeError(error));
-        this.initialLoadingSignal.set(false);
-        return EMPTY;
-      }),
-      finalize(() => this.refreshingSignal.set(false)),
-      map(() => undefined),
-    );
+      },
+    };
   }
-}
 
-function describeError(error: unknown): string {
-  const status = (error as { status?: number } | null)?.status;
-  return status
-    ? `Failed to update the data (HTTP ${status}) — retrying automatically every 5 seconds`
-    : 'Failed to update the data — retrying automatically every 5 seconds';
+  private apply(envelope: ApiResponse<DashboardResponse>): void {
+    if (!envelope.success || envelope.data == null) {
+      this.errorSignal.set(envelope.message || 'Unexpected response envelope');
+      this.initialLoadingSignal.set(false);
+      return;
+    }
+
+    this.dataSignal.set(envelope.data);
+    this.lastUpdatedSignal.set(new Date(envelope.data.updatedAt));
+    this.errorSignal.set(null);
+    this.initialLoadingSignal.set(false);
+  }
+
+  private closeStream(): void {
+    this.stream?.close();
+    this.stream = null;
+  }
 }

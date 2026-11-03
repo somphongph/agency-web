@@ -30,6 +30,11 @@
   --warning-ink: #6b4a00;
 
   --spinner-track: #dbe7f1;
+
+  /* Live-update flashes: up = value increased, down = decreased.
+     Swap these two to follow the Thai market convention (red = up). */
+  --flash-up: rgba(16, 185, 129, 0.4);
+  --flash-down: rgba(220, 38, 38, 0.32);
 }
 
 *,

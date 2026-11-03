@@ -6,6 +6,10 @@
 /out-tsc
 /bazel-out
 
+# Local environment (see .env.example)
+.env
+.env.local
+
 # Node
 /node_modules
 /.pnpm-store

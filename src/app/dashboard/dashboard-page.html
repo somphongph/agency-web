@@ -10,7 +10,7 @@
 
       <div class="stamp stamp--date" aria-label="Last updated date">
         @if (lastUpdated(); as updatedAt) {
-          {{ updatedAt | date: 'dd/MM/yyyy' : 'Asia/Bangkok' }}
+          {{ updatedAt | date: 'dd/MM/yyyy' : bangkokOffset }}
         } @else {
           --/--/----
         }
@@ -18,17 +18,11 @@
 
       <div class="stamp stamp--time" aria-label="Last updated time">
         @if (lastUpdated(); as updatedAt) {
-          {{ updatedAt | date: 'HH:mm:ss' : 'Asia/Bangkok' }}
+          {{ updatedAt | date: 'HH:mm:ss' : bangkokOffset }}
         } @else {
           --:--:--
         }
       </div>
-
-      <span class="refresh-state" [class.refresh-state--active]="isRefreshing()">
-        @if (isRefreshing()) {
-          Updating…
-        }
-      </span>
     </div>
   </header>
 
@@ -38,7 +32,7 @@
         <strong>Warning:</strong> {{ message }}
         @if (lastUpdated(); as updatedAt) {
           <span class="banner-meta"
-            >Last updated at {{ updatedAt | date: 'HH:mm:ss' : 'Asia/Bangkok' }}</span
+            >Last updated at {{ updatedAt | date: 'HH:mm:ss' : bangkokOffset }}</span
           >
         }
       </p>
@@ -64,7 +58,7 @@
     <app-dashboard-table [rows]="rows()" [statusGroups]="dashboard.statusGroups" />
 
     <p class="footnote">
-      Mock data from the backend · regenerated and refreshed automatically every 5 seconds.
+      Mock data from the backend · pushed live over SSE.
     </p>
   }
 </main>

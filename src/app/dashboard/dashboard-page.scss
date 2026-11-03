@@ -71,18 +71,6 @@
   min-width: 110px;
 }
 
-.refresh-state {
-  min-width: 84px;
-  font-size: 11px;
-  color: var(--muted-ink);
-  transition: opacity 120ms ease-in;
-  opacity: 0;
-}
-
-.refresh-state--active {
-  opacity: 1;
-}
-
 .banner {
   margin: 0;
   padding: 10px 16px;
