@@ -1,38 +1,42 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 
-import { DASHBOARD_ENDPOINT, DashboardService, REFRESH_INTERVAL_MS } from './dashboard.service';
-import { sampleDashboard } from './dashboard.fixture';
+import { DASHBOARD_STREAM_ENDPOINT, DashboardService } from './dashboard.service';
+import { DASHBOARD_STREAM_FACTORY } from './dashboard.stream';
+import { sampleDashboard, sampleEnvelope, sampleErrorEnvelope } from './dashboard.fixture';
+import { FakeDashboardStreamFactory } from './testing/fake-dashboard-stream';
 
 describe('DashboardService', () => {
   let service: DashboardService;
-  let httpMock: HttpTestingController;
+  let streams: FakeDashboardStreamFactory;
 
   beforeEach(() => {
-    vi.useFakeTimers();
+    streams = new FakeDashboardStreamFactory();
     TestBed.configureTestingModule({
-      providers: [DashboardService, provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        DashboardService,
+        { provide: DASHBOARD_STREAM_FACTORY, useValue: streams.factory },
+      ],
     });
     service = TestBed.inject(DashboardService);
-    httpMock = TestBed.inject(HttpTestingController);
   });
 
   afterEach(() => {
-    httpMock.verify();
     TestBed.resetTestingModule();
-    vi.useRealTimers();
   });
 
-  it('loads once on start and exposes the parsed payload', () => {
+  it('opens the SSE stream on start', () => {
     service.start();
-    vi.advanceTimersByTime(0);
+    service.start();
 
-    const request = httpMock.expectOne(DASHBOARD_ENDPOINT);
-    expect(request.request.method).toBe('GET');
+    expect(streams.streams).toHaveLength(1);
+    expect(streams.urls).toEqual([DASHBOARD_STREAM_ENDPOINT]);
+  });
+
+  it('applies the pushed snapshot and its Bangkok timestamp', () => {
+    service.start();
     expect(service.isInitialLoading()).toBe(true);
 
-    request.flush(sampleDashboard());
+    streams.latest.emit(sampleEnvelope());
 
     expect(service.isInitialLoading()).toBe(false);
     expect(service.data()?.regions).toHaveLength(8);
@@ -41,68 +45,71 @@ describe('DashboardService', () => {
     expect(service.error()).toBeNull();
   });
 
-  it(`requests fresh data every ${REFRESH_INTERVAL_MS} ms`, () => {
+  it('treats a success:false envelope as a failed load', () => {
     service.start();
-    vi.advanceTimersByTime(0);
-    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(sampleDashboard());
 
-    vi.advanceTimersByTime(REFRESH_INTERVAL_MS - 1);
-    httpMock.expectNone(DASHBOARD_ENDPOINT);
+    streams.latest.emit(sampleErrorEnvelope());
 
-    vi.advanceTimersByTime(1);
-    httpMock
-      .expectOne(DASHBOARD_ENDPOINT)
-      .flush(sampleDashboard({ updatedAt: '2026-10-30T13:45:07+07:00' }));
-
-    expect(service.lastUpdated()?.toISOString()).toBe('2026-10-30T06:45:07.000Z');
+    expect(service.data()).toBeNull();
+    expect(service.isInitialLoading()).toBe(false);
+    expect(service.hasFatalError()).toBe(true);
+    expect(service.error()).toBe('Internal server error.');
   });
 
-  it('keeps the last good data and timestamp when a refresh fails, then recovers', () => {
-    const first = sampleDashboard();
+  it('keeps the last good data when the connection drops, then recovers', () => {
     service.start();
-    vi.advanceTimersByTime(0);
-    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(first);
+    const first = sampleDashboard();
+    streams.latest.emit(sampleEnvelope(first));
 
-    vi.advanceTimersByTime(REFRESH_INTERVAL_MS);
-    httpMock
-      .expectOne(DASHBOARD_ENDPOINT)
-      .flush('boom', { status: 500, statusText: 'Server Error' });
+    streams.latest.fail();
 
-    expect(service.error()).toContain('HTTP 500');
     expect(service.data()).toEqual(first);
-    expect(service.lastUpdated()?.toISOString()).toBe('2026-10-30T06:45:02.000Z');
-    expect(service.isInitialLoading()).toBe(false);
+    expect(service.error()).toContain('Lost the live connection');
+    expect(service.hasFatalError()).toBe(false);
 
     const recovered = sampleDashboard({ updatedAt: '2026-10-30T13:46:00+07:00' });
-    vi.advanceTimersByTime(REFRESH_INTERVAL_MS);
-    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(recovered);
+    streams.latest.emit(sampleEnvelope(recovered));
 
     expect(service.error()).toBeNull();
     expect(service.data()).toEqual(recovered);
     expect(service.lastUpdated()?.toISOString()).toBe('2026-10-30T06:46:00.000Z');
   });
 
-  it('does not stack requests when the API is slower than the refresh interval', () => {
+  it('applies a snapshot that was pushed after an external refresh', () => {
     service.start();
-    vi.advanceTimersByTime(0);
-    const slowRequest = httpMock.expectOne(DASHBOARD_ENDPOINT);
+    streams.latest.emit(sampleEnvelope());
+    const before = service.data();
 
-    vi.advanceTimersByTime(REFRESH_INTERVAL_MS);
-    httpMock.expectNone(DASHBOARD_ENDPOINT);
+    streams.latest.emit(sampleEnvelope(sampleDashboard({ updatedAt: '2026-10-30T14:00:00+07:00' })));
 
-    slowRequest.flush(sampleDashboard());
-    vi.advanceTimersByTime(REFRESH_INTERVAL_MS);
-    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(sampleDashboard());
+    expect(service.data()).not.toEqual(before);
+    expect(service.lastUpdated()?.toISOString()).toBe('2026-10-30T07:00:00.000Z');
+    expect(service.error()).toBeNull();
   });
 
-  it('stops polling when its injector is destroyed', () => {
+  it('reconnects with a new stream and shows the loading state again', () => {
     service.start();
-    vi.advanceTimersByTime(0);
-    httpMock.expectOne(DASHBOARD_ENDPOINT).flush(sampleDashboard());
+    streams.latest.fail();
+    expect(service.hasFatalError()).toBe(true);
+
+    service.reconnect();
+
+    expect(streams.streams[0].closed).toBe(true);
+    expect(streams.streams).toHaveLength(2);
+    expect(service.isInitialLoading()).toBe(true);
+    expect(service.error()).toBeNull();
+
+    streams.latest.emit(sampleEnvelope());
+    expect(service.hasFatalError()).toBe(false);
+    expect(service.data()?.regions).toHaveLength(8);
+  });
+
+  it('closes the stream when its injector is destroyed', () => {
+    service.start();
+    const stream = streams.latest;
 
     TestBed.resetTestingModule();
-    vi.advanceTimersByTime(REFRESH_INTERVAL_MS * 4);
 
-    httpMock.expectNone(DASHBOARD_ENDPOINT);
+    expect(stream.closed).toBe(true);
   });
 });

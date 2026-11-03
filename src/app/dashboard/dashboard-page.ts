@@ -14,10 +14,16 @@ import { DashboardTable } from './dashboard-table';
 export class DashboardPage {
   private readonly dashboardService = inject(DashboardService);
 
+  /**
+   * Angular's DatePipe only accepts numeric offsets ("+0700"), not IANA names — passing
+   * 'Asia/Bangkok' silently falls back to the machine timezone (UTC on CI). Thailand has no
+   * DST, so a fixed +07:00 offset is exact.
+   */
+  protected readonly bangkokOffset = '+0700';
+
   protected readonly data = this.dashboardService.data;
   protected readonly lastUpdated = this.dashboardService.lastUpdated;
   protected readonly isInitialLoading = this.dashboardService.isInitialLoading;
-  protected readonly isRefreshing = this.dashboardService.isRefreshing;
   protected readonly error = this.dashboardService.error;
   protected readonly hasFatalError = this.dashboardService.hasFatalError;
 
@@ -31,6 +37,6 @@ export class DashboardPage {
   }
 
   protected retry(): void {
-    this.dashboardService.refreshNow();
+    this.dashboardService.reconnect();
   }
 }

@@ -1,4 +1,4 @@
-files: ^agency-frontend/
+files: ^agency-web/
 
 repos:
   # General file checks
@@ -22,17 +22,17 @@ repos:
     hooks:
       - id: prettier
         name: Prettier
-        entry: bash -c 'cd agency-frontend && pnpm prettier --write "${@#agency-frontend/}"' bash
+        entry: bash -c 'cd agency-web && pnpm prettier --write "${@#agency-web/}"' bash
         language: system
-        files: ^agency-frontend/
+        files: ^agency-web/
         types_or: [javascript, jsx, tsx, ts, css, scss, html, json]
         pass_filenames: true
 
       - id: typescript
         name: TypeScript type check
-        entry: bash -c 'cd agency-frontend && pnpm tsc --noEmit'
+        entry: bash -c 'cd agency-web && pnpm tsc --noEmit'
         language: system
-        files: ^agency-frontend/
+        files: ^agency-web/
         pass_filenames: false
 
       - id: trivy-check
@@ -44,16 +44,16 @@ repos:
 
       - id: unit-tests
         name: Unit tests
-        entry: bash -c 'cd agency-frontend && make test'
+        entry: bash -c 'cd agency-web && make test'
         language: system
-        files: ^agency-frontend/
+        files: ^agency-web/
         pass_filenames: false
         stages: [pre-commit]
 
       - id: angular-build
         name: Angular build
-        entry: bash -c 'cd agency-frontend && make build'
+        entry: bash -c 'cd agency-web && make build'
         language: system
-        files: ^agency-frontend/
+        files: ^agency-web/
         pass_filenames: false
         stages: [pre-commit]

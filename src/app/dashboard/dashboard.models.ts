@@ -31,6 +31,18 @@ export interface DashboardResponse {
   overall: RegionRow;
 }
 
+/**
+ * Envelope returned by every agency-api endpoint (see `ApiResponse` on the backend):
+ * `{ success, type, message, data }`. Errors use the same shape with `success: false`
+ * and `data: null`.
+ */
+export interface ApiResponse<T> {
+  success: boolean;
+  type: string;
+  message: string;
+  data: T | null;
+}
+
 /** Table column: one status group + one period. Rendered as a Case / ANP pair. */
 export interface DashboardColumn {
   group: StatusKey;

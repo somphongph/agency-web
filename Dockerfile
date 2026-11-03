@@ -3,9 +3,9 @@
 # ---------------------------------------------------------------------------
 # Agency Dashboard UI — Angular 21 (static build served by nginx)
 #
-# Build context: this directory (agency-frontend/)
-#   docker build -t agency-frontend .
-#   docker compose -f ../agency-docs/docker/docker-compose.yml up -d --build
+# Build context: this directory (agency-web/)
+#   docker build -t agency-web .
+#   cd ../agency-docs/docker && make up
 # ---------------------------------------------------------------------------
 
 # ---- Build stage ----------------------------------------------------------
@@ -13,21 +13,28 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 
-# pnpm-lock.yaml makes this reproducible; dependencies go first
-# so that editing application code does not reinstall them.
-COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && \
-    corepack prepare pnpm@10.32.1 --activate && \
-    pnpm install --frozen-lockfile
+# pnpm version is pinned in package.json ("packageManager"), so corepack picks
+# the same one developers use. Dependencies go first for better layer caching.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate \
+    && pnpm install --frozen-lockfile
 
 COPY . ./
-RUN pnpm exec ng build --configuration production
+RUN pnpm build
 
 # ---- Runtime stage --------------------------------------------------------
 FROM nginx:1.27-alpine
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist/agency-frontend/browser /usr/share/nginx/html
+# The nginx config is a template: docker-entrypoint.d/40-api-host.sh renders it with
+# $API_HOST at container start, so the API host is configuration instead of a rebuild.
+COPY nginx.conf.template /etc/agency/nginx.conf.template
+COPY docker-entrypoint.d/40-api-host.sh /docker-entrypoint.d/40-api-host.sh
+RUN chmod +x /docker-entrypoint.d/40-api-host.sh
+COPY --from=build /app/dist/agency-web/browser /usr/share/nginx/html
+
+# Default keeps `docker compose up` working; override it for any other backend:
+#   docker run -e API_HOST=https://api.example.com ...
+ENV API_HOST=http://api:8080
 
 EXPOSE 80
 

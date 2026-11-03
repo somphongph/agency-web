@@ -1,4 +1,5 @@
 import {
+  ApiResponse,
   DashboardResponse,
   Metric,
   PeriodMetrics,
@@ -56,4 +57,16 @@ export function sampleDashboard(overrides: Partial<DashboardResponse> = {}): Das
     overall: sampleRegion('OVERALL', 20),
     ...overrides,
   };
+}
+
+/** Success payload exactly as it arrives on the wire, envelope included. */
+export function sampleEnvelope(
+  data: DashboardResponse = sampleDashboard(),
+): ApiResponse<DashboardResponse> {
+  return { success: true, type: 'success', message: 'Successful.', data };
+}
+
+/** What the backend returns when it fails, e.g. the 500 from ApiExceptionHandler. */
+export function sampleErrorEnvelope(): ApiResponse<DashboardResponse> {
+  return { success: false, type: 'internal_error', message: 'Internal server error.', data: null };
 }
